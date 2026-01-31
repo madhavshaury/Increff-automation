@@ -1,0 +1,21 @@
+# Local environment variables
+.env
+
+# Google OAuth tokens and secrets
+token.json
+client_secrets.json
+*.json
+
+# Downloaded reports
+downloads/
+
+# Python cache and virtual environments
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# IDE settings
+.vscode/
+.idea/
+.DS_Store
