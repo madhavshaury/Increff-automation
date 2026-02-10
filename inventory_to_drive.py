@@ -11,6 +11,9 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
+# Email Libraries (Resend API)
+import base64
+
 # =========================
 # LOAD ENV
 # =========================
@@ -35,6 +38,11 @@ AUTH_TOKEN     = os.getenv("INCREFF_AUTHTOKEN")
 GDRIVE_FOLDER_ID = os.getenv("GDRIVE_FOLDER_ID")
 CLIENT_SECRETS_FILE = os.getenv("GDRIVE_CLIENT_SECRETS_FILE")
 TOKEN_FILE = "token.json"
+
+# Resend Config
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+RESEND_SENDER = os.getenv("RESEND_SENDER", "onboarding@resend.dev")
+RESEND_RECIPIENTS = os.getenv("RESEND_RECIPIENTS", "").split(",")
 
 if not SESSION_COOKIE or not AUTH_TOKEN:
     raise RuntimeError("❌ Missing INCREFF_SESSION or INCREFF_AUTHTOKEN")
@@ -96,6 +104,49 @@ def upload_to_drive(file_path, folder_id):
         print(f"✅ Successfully uploaded to Drive! File ID: {file.get('id')}")
     except Exception as e:
         print(f"❌ Google Drive Upload Failed: {str(e)}")
+
+# =========================
+# EMAIL HELPERS (RESEND)
+# =========================
+
+def send_email_with_resend(file_path):
+    if not RESEND_API_KEY or not RESEND_RECIPIENTS[0]:
+        print("⚠️ Resend credentials not fully configured. Skipping email.")
+        return
+
+    print(f"📧 Sending email via Resend to {', '.join(RESEND_RECIPIENTS)}...")
+    
+    try:
+        with open(file_path, "rb") as f:
+            file_content = base64.b64encode(f.read()).decode()
+
+        payload = {
+            "from": RESEND_SENDER,
+            "to": RESEND_RECIPIENTS,
+            "subject": f"Increff Inventory Report - {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            "html": f"<p>Please find the attached Increff Inventory Report for <strong>{datetime.now().strftime('%Y-%m-%d')}</strong>.</p>",
+            "attachments": [
+                {
+                    "filename": os.path.basename(file_path),
+                    "content": file_content
+                }
+            ]
+        }
+
+        headers = {
+            "Authorization": f"Bearer {RESEND_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        response = requests.post("https://api.resend.com/emails", json=payload, headers=headers)
+        
+        if response.status_code in (200, 201):
+            print(f"✅ Email sent successfully! ID: {response.json().get('id')}")
+        else:
+            print(f"❌ Failed to send email: {response.status_code} - {response.text}")
+
+    except Exception as e:
+        print(f"❌ Resend API Error: {str(e)}")
 
 # =========================
 # INCREFF HELPERS
@@ -191,6 +242,10 @@ def main():
     # 5. UPLOAD TO DRIVE
     if GDRIVE_FOLDER_ID:
         upload_to_drive(abs_path, GDRIVE_FOLDER_ID)
+
+    # 6. SEND EMAIL
+    if RESEND_API_KEY:
+        send_email_with_resend(abs_path)
 
 if __name__ == "__main__":
     main()
