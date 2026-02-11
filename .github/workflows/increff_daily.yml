@@ -33,4 +33,7 @@ jobs:
         INCREFF_AUTHTOKEN: ${{ secrets.INCREFF_AUTHTOKEN }}
         GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
         GDRIVE_CLIENT_SECRETS_FILE: "client_secrets.json"
+        SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+        SENDGRID_SENDER_EMAIL: ${{ secrets.SENDGRID_SENDER_EMAIL }}
+        SENDGRID_RECIPIENTS: ${{ secrets.SENDGRID_RECIPIENTS }}
       run: python inventory_to_drive.py
