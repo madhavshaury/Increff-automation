@@ -39,10 +39,11 @@ GDRIVE_FOLDER_ID = os.getenv("GDRIVE_FOLDER_ID")
 CLIENT_SECRETS_FILE = os.getenv("GDRIVE_CLIENT_SECRETS_FILE")
 TOKEN_FILE = "token.json"
 
-# Resend Config
-RESEND_API_KEY = os.getenv("RESEND_API_KEY")
-RESEND_SENDER = os.getenv("RESEND_SENDER", "onboarding@resend.dev")
-RESEND_RECIPIENTS = os.getenv("RESEND_RECIPIENTS", "").split(",")
+# SendGrid Config
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
+SENDGRID_SENDER_EMAIL = os.getenv("SENDGRID_SENDER_EMAIL")
+SENDGRID_SENDER_NAME = os.getenv("SENDGRID_SENDER_NAME", "Increff Automation")
+SENDGRID_RECIPIENTS = os.getenv("SENDGRID_RECIPIENTS", "").split(",")
 
 if not SESSION_COOKIE or not AUTH_TOKEN:
     raise RuntimeError("❌ Missing INCREFF_SESSION or INCREFF_AUTHTOKEN")
@@ -106,47 +107,63 @@ def upload_to_drive(file_path, folder_id):
         print(f"❌ Google Drive Upload Failed: {str(e)}")
 
 # =========================
-# EMAIL HELPERS (RESEND)
+# EMAIL HELPERS (SENDGRID)
 # =========================
 
-def send_email_with_resend(file_path):
-    if not RESEND_API_KEY or not RESEND_RECIPIENTS[0]:
-        print("⚠️ Resend credentials not fully configured. Skipping email.")
+def send_email_with_sendgrid(file_path):
+    if not SENDGRID_API_KEY or not SENDGRID_RECIPIENTS[0] or not SENDGRID_SENDER_EMAIL:
+        print("⚠️ SendGrid credentials not fully configured. Skipping email.")
         return
 
-    print(f"📧 Sending email via Resend to {', '.join(RESEND_RECIPIENTS)}...")
+    print(f"📧 Sending email via SendGrid to {', '.join(SENDGRID_RECIPIENTS)}...")
     
     try:
+        # 1. Read and encode the file
         with open(file_path, "rb") as f:
             file_content = base64.b64encode(f.read()).decode()
 
+        # 2. Format recipients for SendGrid
+        personalizations = []
+        for email in SENDGRID_RECIPIENTS:
+            if email.strip():
+                personalizations.append({"to": [{"email": email.strip()}]})
+
+        # 3. Create Payload
         payload = {
-            "from": RESEND_SENDER,
-            "to": RESEND_RECIPIENTS,
+            "personalizations": personalizations,
+            "from": {"email": SENDGRID_SENDER_EMAIL, "name": SENDGRID_SENDER_NAME},
             "subject": f"Increff Inventory Report - {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-            "html": f"<p>Please find the attached Increff Inventory Report for <strong>{datetime.now().strftime('%Y-%m-%d')}</strong>.</p>",
+            "content": [
+                {
+                    "type": "text/html",
+                    "value": f"<p>Please find the attached Increff Inventory Report for <strong>{datetime.now().strftime('%Y-%m-%d')}</strong>.</p>"
+                }
+            ],
             "attachments": [
                 {
+                    "content": file_content,
                     "filename": os.path.basename(file_path),
-                    "content": file_content
+                    "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "disposition": "attachment"
                 }
             ]
         }
 
         headers = {
-            "Authorization": f"Bearer {RESEND_API_KEY}",
+            "Authorization": f"Bearer {SENDGRID_API_KEY}",
             "Content-Type": "application/json"
         }
 
-        response = requests.post("https://api.resend.com/emails", json=payload, headers=headers)
+        # 4. API Request
+        response = requests.post("https://api.sendgrid.com/v3/mail/send", json=payload, headers=headers)
         
-        if response.status_code in (200, 201):
-            print(f"✅ Email sent successfully! ID: {response.json().get('id')}")
+        if response.status_code in (200, 201, 202):
+            print(f"✅ Email sent successfully via SendGrid!")
         else:
             print(f"❌ Failed to send email: {response.status_code} - {response.text}")
 
     except Exception as e:
-        print(f"❌ Resend API Error: {str(e)}")
+        print(f"❌ SendGrid API Error: {str(e)}")
 
 # =========================
 # INCREFF HELPERS
@@ -244,8 +261,8 @@ def main():
         upload_to_drive(abs_path, GDRIVE_FOLDER_ID)
 
     # 6. SEND EMAIL
-    if RESEND_API_KEY:
-        send_email_with_resend(abs_path)
+    if SENDGRID_API_KEY:
+        send_email_with_sendgrid(abs_path)
 
 if __name__ == "__main__":
     main()
