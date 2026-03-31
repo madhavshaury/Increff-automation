@@ -1,16 +1,16 @@
-# Increff Automation Suite 🚀
+# Increff Automation Suite
 
 A comprehensive automation toolkit designed to streamline report generation from **Increff Omni**, download them locally, upload them to **Google Drive**, and optionally distribute them via **SendGrid**.
 
 ---
 
-## 🌟 Key Features
+## Key Features
 
 - **Automated Report Generation**: Seamlessly triggers standard reports across multiple categories:
-  - 📦 **Inventory**: Current stock levels and QC status (Daily).
-  - 📈 **Orders**: Monthly order status details (OMS).
-  - 🔄 **Returns**: Detailed return order tracking (Monthly).
-  - 📋 **SKU Master**: Global SKU and style mapping.
+  - **Inventory**: Current stock levels and QC status (Daily).
+  - **Orders**: Monthly order status details (OMS).
+  - **Returns**: Detailed return order tracking (Monthly).
+  - **SKU Master**: Global SKU and style mapping.
 - **Google Drive Integration**: Automatically uploads every generated report to a designated Google Drive folder for centralized access.
 - **Email Distribution**: Built-in SendGrid support to email inventory reports directly to stakeholders.
 - **Smart Polling**: Intelligent retry logic that waits for Increff to process large reports before attempting download.
@@ -18,7 +18,7 @@ A comprehensive automation toolkit designed to streamline report generation from
 
 ---
 
-## 🛠 Project Structure
+## Project Structure
 
 ```text
 increff_automation/
@@ -35,7 +35,7 @@ increff_automation/
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### 1. Prerequisites
 Ensure you have Python 3.8+ installed.
@@ -68,7 +68,7 @@ SENDGRID_RECIPIENTS="user1@example.com,user2@example.com"
 
 ---
 
-## ⚙️ Authentication Setup
+## Authentication Setup
 
 ### Increff Session
 Since Increff uses session-based authentication, you must first capture a valid session:
@@ -86,7 +86,7 @@ Since Increff uses session-based authentication, you must first capture a valid 
 
 ---
 
-## 📖 Usage
+## Usage
 
 Run the desired automation script based on the report you need:
 
@@ -99,5 +99,5 @@ Run the desired automation script based on the report you need:
 
 ---
 
-## 🛡 Disclaimer
+## Disclaimer
 This tool is intended for internal automation purposes. Ensure you comply with Increff's Terms of Service regarding API usage and automated access.
