@@ -39,6 +39,7 @@ jobs:
         run: node scripts/audit/generate-audit.js
 
       - name: Post to Slack
+        continue-on-error: true
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL: "#increff-audits"
@@ -51,6 +52,7 @@ jobs:
         run: node scripts/audit/post-to-slack.js
 
       - name: Post to Teams
+        continue-on-error: true
         env:
           TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
           AUDIT_TITLE: ${{ steps.audit.outputs.title }}
