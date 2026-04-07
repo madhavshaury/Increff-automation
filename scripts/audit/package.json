@@ -1,0 +1,17 @@
+{
+  "name": "audit-scripts",
+  "version": "1.0.0",
+  "description": "PR audit generation and notification scripts for GitHub Actions",
+  "type": "module",
+  "scripts": {
+    "generate": "node generate-audit.js",
+    "post-slack": "node post-to-slack.js",
+    "post-teams": "node post-to-teams.js"
+  },
+  "dependencies": {
+    "@slack/web-api": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
