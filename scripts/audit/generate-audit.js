@@ -21,8 +21,14 @@ import { appendFileSync } from "fs";
 // ─── Constants ────────────────────────────────────────────────────────
 const NVIDIA_API_URL =
   "https://integrate.api.nvidia.com/v1/chat/completions";
-const MODEL_ID = "qwen/qwen3.5-122b-a10b";
 const MAX_DIFF_CHARS = 60_000; // keep under model context limit
+
+// Fallback model chain — if the primary is degraded, try the next
+const MODELS = [
+  { id: "qwen/qwen3.5-122b-a10b", thinking: true },
+  { id: "meta/llama-3.3-70b-instruct", thinking: false },
+  { id: "qwen/qwq-32b", thinking: true },
+];
 
 // ─── Fetch PR diff ───────────────────────────────────────────────────
 async function fetchPRDiff() {
@@ -77,8 +83,8 @@ async function fetchPRFiles() {
   }));
 }
 
-// ─── Analyze with NVIDIA NIM ─────────────────────────────────────────
-async function analyzeWithNVIDIA(diff, fileList) {
+// ─── Build the prompt ────────────────────────────────────────────────
+function buildPrompt(diff, fileList) {
   const filesSummary = fileList
     .map(
       (f) =>
@@ -86,7 +92,7 @@ async function analyzeWithNVIDIA(diff, fileList) {
     )
     .join("\n");
 
-  const prompt = `You are a senior software engineer performing a system audit on a merged pull request.
+  return `You are a senior software engineer performing a system audit on a merged pull request.
 
 Analyze the git diff below and produce a structured audit report.
 
@@ -121,36 +127,56 @@ ${filesSummary}
 \`\`\`diff
 ${diff}
 \`\`\``;
+}
 
-  const payload = {
-    model: MODEL_ID,
-    messages: [{ role: "user", content: prompt }],
-    max_tokens: 16384,
-    temperature: 0.6,
-    top_p: 0.95,
-    stream: false,
-    chat_template_kwargs: { enable_thinking: true },
-  };
+// ─── Analyze with NVIDIA NIM (with fallback models) ──────────────────
+async function analyzeWithNVIDIA(diff, fileList) {
+  const prompt = buildPrompt(diff, fileList);
 
-  console.log("🤖 Calling NVIDIA NIM API...");
+  for (const model of MODELS) {
+    console.log(`🤖 Trying model: ${model.id}...`);
 
-  const res = await fetch(NVIDIA_API_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.NVIDIA_API_KEY}`,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+    const payload = {
+      model: model.id,
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 16384,
+      temperature: 0.6,
+      top_p: 0.95,
+      stream: false,
+    };
 
-  if (!res.ok) {
-    const errBody = await res.text();
-    throw new Error(`NVIDIA NIM API ${res.status}: ${errBody}`);
+    // Only add thinking for models that support it
+    if (model.thinking) {
+      payload.chat_template_kwargs = { enable_thinking: true };
+    }
+
+    try {
+      const res = await fetch(NVIDIA_API_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.NVIDIA_API_KEY}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errBody = await res.text();
+        console.warn(`⚠️  Model ${model.id} failed (${res.status}): ${errBody}`);
+        continue; // Try next model
+      }
+
+      const data = await res.json();
+      console.log(`✅ Model ${model.id} responded successfully`);
+      return data.choices[0].message.content;
+    } catch (err) {
+      console.warn(`⚠️  Model ${model.id} error: ${err.message}`);
+      continue; // Try next model
+    }
   }
 
-  const data = await res.json();
-  return data.choices[0].message.content;
+  throw new Error("All NVIDIA NIM models failed. Please check API status at build.nvidia.com");
 }
 
 // ─── Parse the model output ─────────────────────────────────────────
